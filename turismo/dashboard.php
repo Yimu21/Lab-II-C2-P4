@@ -1,16 +1,15 @@
 <?php
-// dashboard.php - Panel principal (requiere login)
+// dashboard.php - Panel principal (sin login, usuario hardcodeado)
 session_start();
-
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: login.php");
-    exit();
-}
 
 require_once 'config/database.php';
 
+// ── Usuario fijo (debe existir en la tabla usuarios) ──────────────────
+// Ajusta estos valores si cambias el usuario en la BD
+$uid             = 1;
+$usuario_nombre  = 'Admin San Miguel';
+
 $conn    = getConnection();
-$uid     = $_SESSION['usuario_id'];
 $errores = [];
 $success = '';
 
@@ -44,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agregar'])) {
         $stmt->bind_param("ssssssdii", $nombre, $categoria, $descripcion, $direccion, $municipio, $horario, $entrada_val, $calificacion, $uid);
         if ($stmt->execute()) {
             $success = "¡Lugar turístico agregado exitosamente!";
+            // Limpiar POST para no repoblar el formulario
+            $_POST = [];
         } else {
             $errores[] = "Error al guardar. Intenta de nuevo.";
         }
@@ -63,8 +64,8 @@ if (isset($_GET['eliminar']) && is_numeric($_GET['eliminar'])) {
 }
 
 // ── Buscar / listar lugares ───────────────────────────────────────────
-$buscar    = trim($_GET['buscar'] ?? '');
-$filtro_cat= trim($_GET['categoria_f'] ?? '');
+$buscar     = trim($_GET['buscar']      ?? '');
+$filtro_cat = trim($_GET['categoria_f'] ?? '');
 
 $sql = "SELECT l.*, u.nombre AS autor FROM lugares l 
         JOIN usuarios u ON l.usuario_id = u.id 
@@ -91,8 +92,14 @@ $lugares = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 $conn->close();
 
-$estrellas = fn($n) => str_repeat('★', $n) . str_repeat('☆', 5 - $n);
-$cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'=>'🏛️ Histórico','religioso'=>'⛪ Religioso','recreativo'=>'🎡 Recreativo'];
+$estrellas  = fn($n) => str_repeat('★', $n) . str_repeat('☆', 5 - $n);
+$cat_labels = [
+    'natural'   => '🌿 Natural',
+    'cultural'  => '🎭 Cultural',
+    'historico' => '🏛️ Histórico',
+    'religioso' => '⛪ Religioso',
+    'recreativo'=> '🎡 Recreativo',
+];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -121,23 +128,16 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
             backdrop-filter:blur(8px);
         }
         .nav-brand { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--gold-lt); display:flex; align-items:center; gap:.5rem; }
-        .nav-right { display:flex; align-items:center; gap:1.5rem; font-size:.85rem; }
-        .nav-right span { color:rgba(245,240,232,.5); }
-        .btn-logout {
-            background:transparent; border:1px solid rgba(200,146,42,.3);
-            color:var(--gold-lt); padding:.35rem .9rem; border-radius:3px;
-            font-size:.8rem; cursor:pointer; letter-spacing:.06em;
-            transition:background .2s;
-        }
-        .btn-logout:hover { background:rgba(200,146,42,.12); }
+        .nav-right  { display:flex; align-items:center; gap:1.5rem; font-size:.85rem; }
+        .nav-right span { color:rgba(245,240,232,.6); }
 
         /* ── LAYOUT ── */
         .container { max-width:1200px; margin:0 auto; padding:2rem 1.5rem; }
 
         /* ── ALERTS ── */
         .alert { border-radius:3px; padding:.75rem 1.1rem; font-size:.88rem; margin-bottom:1.5rem; }
-        .alert-error { background:rgba(139,26,26,.2); border:1px solid rgba(139,26,26,.4); color:#ff9999; }
-        .alert-success { background:rgba(26,100,50,.2); border:1px solid rgba(26,100,50,.4); color:#88ffaa; }
+        .alert-error   { background:rgba(139,26,26,.2);  border:1px solid rgba(139,26,26,.4);  color:#ff9999; }
+        .alert-success { background:rgba(26,100,50,.2);  border:1px solid rgba(26,100,50,.4);  color:#88ffaa; }
 
         /* ── SECTION TITLES ── */
         .section-title {
@@ -156,7 +156,7 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
             margin-bottom:2.5rem;
         }
         .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-        .form-full { grid-column:1/-1; }
+        .form-full  { grid-column:1/-1; }
         label { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:rgba(245,240,232,.5); margin-bottom:.35rem; }
         input, select, textarea {
             width:100%; background:rgba(13,27,42,.8);
@@ -173,7 +173,7 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
             border:none; border-radius:3px; padding:.75rem 2rem;
             color:#fff; font-family:'Lato',sans-serif; font-weight:700;
             font-size:.82rem; letter-spacing:.12em; text-transform:uppercase;
-            cursor:pointer; transition:opacity .2s,transform .15s;
+            cursor:pointer; transition:opacity .2s, transform .15s;
             margin-top:1rem;
         }
         .btn-submit:hover { opacity:.88; transform:translateY(-1px); }
@@ -203,12 +203,12 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
             border-radius:50px; font-size:.72rem; font-weight:700;
             letter-spacing:.06em;
         }
-        .cat-natural   { background:rgba(26,150,50,.2);  color:#88ffaa; border:1px solid rgba(26,150,50,.4); }
-        .cat-cultural  { background:rgba(150,100,26,.2); color:#ffcc88; border:1px solid rgba(150,100,26,.4); }
-        .cat-historico { background:rgba(100,26,150,.2); color:#cc99ff; border:1px solid rgba(100,26,150,.4); }
-        .cat-religioso { background:rgba(26,100,150,.2); color:#88ccff; border:1px solid rgba(26,100,150,.4); }
-        .cat-recreativo{ background:rgba(26,150,150,.2); color:#88ffee; border:1px solid rgba(26,150,150,.4); }
-        .stars { color:var(--gold); font-size:1rem; }
+        .cat-natural    { background:rgba(26,150,50,.2);  color:#88ffaa; border:1px solid rgba(26,150,50,.4); }
+        .cat-cultural   { background:rgba(150,100,26,.2); color:#ffcc88; border:1px solid rgba(150,100,26,.4); }
+        .cat-historico  { background:rgba(100,26,150,.2); color:#cc99ff; border:1px solid rgba(100,26,150,.4); }
+        .cat-religioso  { background:rgba(26,100,150,.2); color:#88ccff; border:1px solid rgba(26,100,150,.4); }
+        .cat-recreativo { background:rgba(26,150,150,.2); color:#88ffee; border:1px solid rgba(26,150,150,.4); }
+        .stars   { color:var(--gold); font-size:1rem; }
         .btn-del { background:transparent; border:1px solid rgba(139,26,26,.5); color:#ff9999; padding:.25rem .65rem; border-radius:3px; font-size:.78rem; cursor:pointer; transition:background .2s; }
         .btn-del:hover { background:rgba(139,26,26,.3); }
         .empty-row td { text-align:center; color:rgba(245,240,232,.35); padding:2.5rem; font-style:italic; }
@@ -218,8 +218,7 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
 <nav>
     <div class="nav-brand">🏔️ Turismo San Miguel</div>
     <div class="nav-right">
-        <span>👤 <?= htmlspecialchars($_SESSION['usuario_nombre']) ?></span>
-        <a href="logout.php"><button class="btn-logout">Cerrar sesión</button></a>
+        <span>👤 <?= htmlspecialchars($usuario_nombre) ?></span>
     </div>
 </nav>
 
@@ -251,8 +250,8 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
                     <label>Categoría *</label>
                     <select name="categoria" required>
                         <option value="">-- Seleccionar --</option>
-                        <?php foreach($cat_labels as $k=>$v): ?>
-                            <option value="<?=$k?>" <?= (($_POST['categoria']??'')===$k)?'selected':'' ?>><?=$v?></option>
+                        <?php foreach($cat_labels as $k => $v): ?>
+                            <option value="<?= $k ?>" <?= (($_POST['categoria'] ?? '') === $k) ? 'selected' : '' ?>><?= $v ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -276,8 +275,8 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
                     <label>Calificación (1–5) *</label>
                     <select name="calificacion" required>
                         <option value="">-- Seleccionar --</option>
-                        <?php for($i=1;$i<=5;$i++): ?>
-                            <option value="<?=$i?>" <?= (($_POST['calificacion']??'')==$i)?'selected':'' ?>><?= str_repeat('★',$i) ?> (<?=$i?>)</option>
+                        <?php for($i = 1; $i <= 5; $i++): ?>
+                            <option value="<?= $i ?>" <?= (($_POST['calificacion'] ?? '') == $i) ? 'selected' : '' ?>><?= str_repeat('★', $i) ?> (<?= $i ?>)</option>
                         <?php endfor; ?>
                     </select>
                 </div>
@@ -297,8 +296,8 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
         <input type="text" name="buscar" value="<?= htmlspecialchars($buscar) ?>" placeholder="🔍 Buscar nombre o municipio...">
         <select name="categoria_f">
             <option value="">Todas las categorías</option>
-            <?php foreach($cat_labels as $k=>$v): ?>
-                <option value="<?=$k?>" <?= ($filtro_cat===$k)?'selected':'' ?>><?=$v?></option>
+            <?php foreach($cat_labels as $k => $v): ?>
+                <option value="<?= $k ?>" <?= ($filtro_cat === $k) ? 'selected' : '' ?>><?= $v ?></option>
             <?php endforeach; ?>
         </select>
         <button type="submit" class="btn-filter">Filtrar</button>
@@ -328,13 +327,20 @@ $cat_labels = ['natural'=>'🌿 Natural','cultural'=>'🎭 Cultural','historico'
                 <?php else: ?>
                     <?php foreach($lugares as $i => $l): ?>
                     <tr>
-                        <td><?= $i+1 ?></td>
-                        <td><strong><?= htmlspecialchars($l['nombre']) ?></strong><br><small style="color:rgba(245,240,232,.4)"><?= htmlspecialchars(substr($l['descripcion'],0,50)) ?>…</small></td>
+                        <td><?= $i + 1 ?></td>
+                        <td>
+                            <strong><?= htmlspecialchars($l['nombre']) ?></strong><br>
+                            <small style="color:rgba(245,240,232,.4)"><?= htmlspecialchars(substr($l['descripcion'], 0, 50)) ?>…</small>
+                        </td>
                         <td><span class="cat-badge cat-<?= $l['categoria'] ?>"><?= $cat_labels[$l['categoria']] ?></span></td>
                         <td><?= htmlspecialchars($l['municipio']) ?></td>
                         <td><?= htmlspecialchars($l['direccion']) ?></td>
                         <td><?= htmlspecialchars($l['horario'] ?: '—') ?></td>
-                        <td><?= $l['entrada'] > 0 ? '$'.number_format($l['entrada'],2) : '<span style="color:rgba(245,240,232,.4)">Gratis</span>' ?></td>
+                        <td>
+                            <?= $l['entrada'] > 0
+                                ? '$' . number_format($l['entrada'], 2)
+                                : '<span style="color:rgba(245,240,232,.4)">Gratis</span>' ?>
+                        </td>
                         <td><span class="stars"><?= $estrellas($l['calificacion']) ?></span></td>
                         <td><?= htmlspecialchars($l['autor']) ?></td>
                         <td style="white-space:nowrap"><?= date('d/m/Y', strtotime($l['created_at'])) ?></td>
