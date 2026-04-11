@@ -12,33 +12,47 @@ require_once 'config/database.php';
 
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
+// Credenciales predeterminadas (puedes cambiarlas aquí)
+$DEFAULT_USUARIO  = 'admin';
+$DEFAULT_PASSWORD = '198420';
 
-    if (empty($email) || empty($password)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $usuario  = trim($_POST['usuario'] ?? $DEFAULT_USUARIO);
+    $password = $_POST['password'] ?? $DEFAULT_PASSWORD;
+
+    if (empty($usuario) || empty($password)) {
         $error = 'Por favor completa todos los campos.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'El formato del correo electrónico no es válido.';
     } else {
         $conn = getConnection();
-        $stmt = $conn->prepare("SELECT id, nombre, password FROM usuarios WHERE email = ?");
-        $stmt->bind_param("s", $email);
+
+        // Buscar por nombre de usuario
+        $stmt = $conn->prepare("SELECT id, nombre, password FROM usuarios WHERE nombre = ?");
+        $stmt->bind_param("s", $usuario);
         $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows === 1) {
-            $usuario = $result->fetch_assoc();
-            if (password_verify($password, $usuario['password'])) {
-                $_SESSION['usuario_id']   = $usuario['id'];
-                $_SESSION['usuario_nombre'] = $usuario['nombre'];
+            $user = $result->fetch_assoc();
+
+            // Intentar primero con password_verify (para hashes bcrypt)
+            // y luego comparación directa (para contraseñas en texto plano)
+            $ok = false;
+            if (password_verify($password, $user['password'])) {
+                $ok = true;                          // hash bcrypt correcto
+            } elseif ($user['password'] === $password) {
+                $ok = true;                          // texto plano directo
+            }
+
+            if ($ok) {
+                $_SESSION['usuario_id']     = $user['id'];
+                $_SESSION['usuario_nombre'] = $user['nombre'];
                 header("Location: dashboard.php");
                 exit();
             } else {
-                $error = 'Correo o contraseña incorrectos.';
+                $error = 'Usuario o contraseña incorrectos.';
             }
         } else {
-            $error = 'Correo o contraseña incorrectos.';
+            $error = 'Usuario o contraseña incorrectos.';
         }
 
         $stmt->close();
@@ -78,7 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             overflow: hidden;
         }
 
-        /* Fondo decorativo */
         body::before {
             content: '';
             position: fixed;
@@ -187,10 +200,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 1.25rem;
         }
 
+        /* Input con valor fijo: borde dorado tenue, cursor normal */
+        input[readonly] {
+            border-color: rgba(200,146,42,0.35);
+            opacity: 0.85;
+            cursor: default;
+        }
+
         input:focus {
             outline: none;
             border-color: var(--gold);
             box-shadow: 0 0 0 3px rgba(200,146,42,0.12);
+        }
+
+        .lock-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--gold);
+            background: rgba(200,146,42,0.12);
+            border: 1px solid rgba(200,146,42,0.25);
+            border-radius: 2px;
+            padding: 0.1rem 0.4rem;
+            margin-left: 0.4rem;
+            vertical-align: middle;
         }
 
         button[type="submit"] {
@@ -211,6 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         button[type="submit"]:hover { opacity: 0.88; transform: translateY(-1px); }
+        button[type="submit"]:active { transform: translateY(0); }
 
         .register-link {
             text-align: center;
@@ -241,21 +276,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="login.php" novalidate>
-            <label for="email">Correo electrónico</label>
-            <input type="email" id="email" name="email"
-                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
-                   placeholder="correo@ejemplo.com" required>
 
-            <label for="password">Contraseña</label>
-            <input type="password" id="password" name="password"
-                   placeholder="••••••••" required>
+            <label for="usuario">
+                Usuario <span class="lock-badge">🔒 predeterminado</span>
+            </label>
+            <input
+                type="text"
+                id="usuario"
+                name="usuario"
+                value="<?= htmlspecialchars($DEFAULT_USUARIO) ?>"
+                readonly>
+
+            <label for="password">
+                Contraseña <span class="lock-badge">🔒 predeterminada</span>
+            </label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                value="<?= htmlspecialchars($DEFAULT_PASSWORD) ?>"
+                readonly>
 
             <button type="submit">Ingresar</button>
         </form>
-
-        <p class="register-link">
-            ¿No tienes cuenta? <a href="registro.php">Regístrate aquí</a>
-        </p>
     </div>
 </body>
 </html>

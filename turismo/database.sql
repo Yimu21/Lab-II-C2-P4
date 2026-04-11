@@ -27,6 +27,5 @@ CREATE TABLE IF NOT EXISTS lugares (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
--- Usuario de prueba (password: admin123)
 INSERT INTO usuarios (nombre, email, password) VALUES
-('Admin San Miguel', 'admin@turismo.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+('admin', 'administrador@turismo.com', '198420');
